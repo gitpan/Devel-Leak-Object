@@ -123,6 +123,8 @@ is($Devel::Leak::Object::objcount{C}, 0, 'C object count decremented');
 #17
 is($E::msg, 'E::DESTROY called for bar', 'Inherited DESTROY method C::bar');
 
+Devel::Leak::Object::track($foo);
+
 undef $foo;
 
 #18

@@ -5,10 +5,10 @@ use strict;
 BEGIN {
 	use Exporter ();
 	use vars qw ($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-	$VERSION     = 0.01;
+	$VERSION     = 0.02;
 	@ISA         = qw (Exporter);
 	@EXPORT      = qw ();
-	@EXPORT_OK   = qw (track bless);
+	@EXPORT_OK   = qw (track bless status);
 	%EXPORT_TAGS = ();
 }
 
@@ -52,7 +52,7 @@ Please report bugs to http://rt.cpan.org
 	
 =head1 COPYRIGHT
 
-Copyright (C) 1994 Ivor Williams.
+Copyright (C) 2004 Ivor Williams.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.
@@ -68,10 +68,11 @@ perl(1).
 =cut
 
 use Carp;
-use Hook::LexWrap;
 
 our %objcount;
 our %tracked;
+our %destroy_orig;
+
 use Data::Dumper;
 
 sub import {
@@ -107,31 +108,14 @@ sub track
 	$tracked{$addr} = $class;
 	if (!exists $objcount{$class}) {
 	    no strict 'refs';
-	    if ((!exists ${$class.'::'}{DESTROY}) || 
-	            !*{$class.'::DESTROY'}{CODE}) {
-	        *{$class.'::DESTROY'} = \&_DESTROY_stub;
-	        ${$class.'::DESTROY_stubbed'} = 1;
+	    if ((exists ${$class.'::'}{DESTROY}) && 
+	            *{$class.'::DESTROY'}{CODE}) {
+	        $destroy_orig{$class} = \&{$class.'::DESTROY'};
 	    }
-	    wrap "${class}::DESTROY", pre => \&destroy;
+	    *{$class.'::DESTROY'} = \&_DESTROY_stub;
+	    ${$class.'::DESTROY_stubbed'} = 1;
 	}
 	$objcount{$class}++;
-}
-
-sub destroy {
-	my ($obj) = @_;
-
-#	print STDERR "destroy called\n";
-	my ($class,$type,$addr) = "$obj" =~ /^
-		((?:\w|\:\:)+)			# Stringification has pkg name
-		=(ARRAY|HASH|SCALAR|GLOB|CODE)  # type
-		\((0x[0-9a-f]+)\)             # and address
-		/x or carp "Not passed an object";
-	warn "No objects in $class", return 
-	    unless exists($objcount{$class}) && $objcount{$class};
-	$objcount{$class}--;
-	warn "Object not tracked" unless exists $tracked{$addr};
-
-	delete $tracked{$addr};
 }
 
 sub status {
@@ -143,8 +127,20 @@ sub status {
 
 sub _DESTROY_stub {
 	my ($obj) = @_;
-#	print STDERR "_DESTROY_stub called\n";
-	my $class = ref $obj or croak "DESTROY stub called without an object";
+	my ($class,$type,$addr) = "$obj" =~ /^
+		((?:\w|\:\:)+)			# Stringification has pkg name
+		=(ARRAY|HASH|SCALAR|GLOB|CODE)  # type
+		\((0x[0-9a-f]+)\)             # and address
+		/x or carp "Not passed an object";
+	if (exists($objcount{$class})) {
+	    $objcount{$class}--;
+	    warn "Object count for $class negative ($objcount{$class})\n"
+	        if $objcount{$class} < 0;
+	    warn "Object not tracked" unless exists $tracked{$addr};
+	    delete $tracked{$addr};
+	}
+	goto &{$destroy_orig{$class}} if exists $destroy_orig{$class};
+	
         no strict 'refs';
 
 	my @inherited = @{$class.'::ISA'} ;
@@ -153,10 +149,12 @@ sub _DESTROY_stub {
 	    my $superclass = shift @inherited;
 	    unshift @inherited, @{$superclass.'::ISA'}
 	       if exists ${$superclass.'::'}{ISA};
-	    goto \&{$superclass.'::DESTROY'}
-	       if !exists(${$superclass.'::'}{DESTROY_stubbed}) &&
-	           exists(${$superclass.'::'}{DESTROY}) &&
-	           *{$superclass.'::DESTROY'}{CODE};
+	    goto &{$destroy_orig{$superclass}}  
+	       if exists $destroy_orig{$superclass};
+	    goto &{$superclass.'::DESTROY'}
+	       if exists(${$superclass.'::'}{DESTROY}) &&
+	           *{$superclass.'::DESTROY'}{CODE} &&
+	           !exists ${$superclass.'::'}{DESTROY_stubbed};
 	}
 }
 
