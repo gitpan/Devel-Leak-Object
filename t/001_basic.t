@@ -1,37 +1,27 @@
-# -*- perl -*-
+#!/usr/bin/perl
 
-# t/001_basic.t - Basic tests
-
+use strict;
 use Test::More tests => 7;
 
-#01
-BEGIN { use_ok( 'Devel::Leak::Object' ); }
+my $class = 'Foo::Bar';
 
-my $foo = bless {}, 'Foo::Bar';
+BEGIN {
+    use_ok( 'Devel::Leak::Object' );
+}
 
-#02
-isa_ok($foo, 'Foo::Bar', "Before the tests");
+my $foo = bless {}, $class;
+isa_ok($foo, $class, "Before the tests");
 
 Devel::Leak::Object::track($foo);
+is ($Devel::Leak::Object::OBJECT_COUNT{$class},1,'# objects ($foo)');
 
-#03
-is ($Devel::Leak::Object::objcount{Foo::Bar},1,'# objects ($foo)');
-
-my $buzz = bless [], 'Foo::Bar';
+my $buzz = bless [], $class;
 Devel::Leak::Object::track($buzz);
-
-#04
-is ($Devel::Leak::Object::objcount{Foo::Bar},2,'# objects ($foo,$buzz)');
+is ($Devel::Leak::Object::OBJECT_COUNT{$class},2,'# objects ($foo,$buzz)');
 
 undef $foo;
-
-#05
-is ($Devel::Leak::Object::objcount{Foo::Bar},1,'# objects ($buzz)');
+is ($Devel::Leak::Object::OBJECT_COUNT{$class},1,'# objects ($buzz)');
 
 undef $buzz;
-
-#06
-is ($Devel::Leak::Object::objcount{Foo::Bar},0,'no objects left');
-
-#07
+is ($Devel::Leak::Object::OBJECT_COUNT{$class},0,'no objects left');
 is (scalar(keys %Devel::Leak::Object::tracked), 0, 'Nothing still tracked');

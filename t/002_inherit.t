@@ -1,9 +1,6 @@
-# -*- perl -*-
+#!/usr/bin/perl
 
-use warnings;
-
-# t/002_load.t - test inheritance of DESTROY
-
+use strict;
 use Test::More tests => 18;
 
 package A;
@@ -26,7 +23,9 @@ sub new {
     bless {name => $par, constructor => 'E'},$pkg;
 }
 
-our $msg = '';
+use vars qw{$msg};
+$msg = '';
+
 sub DESTROY {
     my $self = shift;
 
@@ -40,10 +39,13 @@ package C;
 use base qw/Blah D/;
 
 package main;
+
 use strict;
 
 #01
-BEGIN { use_ok( 'Devel::Leak::Object' ); }
+BEGIN {
+    use_ok( 'Devel::Leak::Object' );
+}
 
 my $foo = C->new('foo');
 
@@ -67,12 +69,12 @@ Devel::Leak::Object::track($bar);
 is($bar->{constructor},'E','Inherits new from E');
 
 #06
-is($Devel::Leak::Object::objcount{D}, 1, 'D object count');
+is($Devel::Leak::Object::OBJECT_COUNT{D}, 1, 'D object count');
 
 undef $bar;
 
 #07
-is($Devel::Leak::Object::objcount{D}, 0, 'D object count decremented');
+is($Devel::Leak::Object::OBJECT_COUNT{D}, 0, 'D object count decremented');
 
 #08
 is($E::msg, 'E::DESTROY called for bar', 'Inherited DESTROY method D::bar');
@@ -91,12 +93,12 @@ Devel::Leak::Object::track($bar);
 is($bar->{constructor},'A','Inherits new from A');
 
 #11
-is($Devel::Leak::Object::objcount{Blah}, 1, 'Blah object count');
+is($Devel::Leak::Object::OBJECT_COUNT{Blah}, 1, 'Blah object count');
 
 undef $bar;
 
 #12
-is($Devel::Leak::Object::objcount{Blah}, 0, 'Blah object count decremented');
+is($Devel::Leak::Object::OBJECT_COUNT{Blah}, 0, 'Blah object count decremented');
 
 undef $foo;
 
@@ -113,12 +115,12 @@ Devel::Leak::Object::track($bar);
 is($bar->{constructor},'A','Inherits new from A');
 
 #15
-is($Devel::Leak::Object::objcount{C}, 1, 'C object count');
+is($Devel::Leak::Object::OBJECT_COUNT{C}, 1, 'C object count');
 
 undef $bar;
 
 #16
-is($Devel::Leak::Object::objcount{C}, 0, 'C object count decremented');
+is($Devel::Leak::Object::OBJECT_COUNT{C}, 0, 'C object count decremented');
 
 #17
 is($E::msg, 'E::DESTROY called for bar', 'Inherited DESTROY method C::bar');

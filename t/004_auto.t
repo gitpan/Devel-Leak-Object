@@ -1,6 +1,6 @@
-# -*- perl -*-
+#!/usr/bin/perl
 
-# t/001_load.t - check module loading and create testing directory
+# t/002_auto.t - check module loading and create testing directory
 
 use Test::More tests => 6;
 
@@ -12,22 +12,22 @@ my $foo = bless {}, 'Foo::Bar';
 isa_ok($foo, 'Foo::Bar', "Before the tests");
 
 #02
-is ($Devel::Leak::Object::objcount{Foo::Bar},1,'# objects ($foo)');
+is ($Devel::Leak::Object::OBJECT_COUNT{'Foo::Bar'},1,'# objects ($foo)');
 
 my $buzz = bless [], 'Foo::Bar';
 
 #03
-is ($Devel::Leak::Object::objcount{Foo::Bar},2,'# objects ($foo,$buzz)');
+is ($Devel::Leak::Object::OBJECT_COUNT{'Foo::Bar'},2,'# objects ($foo,$buzz)');
 
 undef $foo;
 
 #04
-is ($Devel::Leak::Object::objcount{Foo::Bar},1,'# objects ($buzz)');
+is ($Devel::Leak::Object::OBJECT_COUNT{'Foo::Bar'},1,'# objects ($buzz)');
 
 undef $buzz;
 
 #05
-is ($Devel::Leak::Object::objcount{Foo::Bar},0,'no objects left');
+is ($Devel::Leak::Object::OBJECT_COUNT{'Foo::Bar'},0,'no objects left');
 
 #06
-is (scalar(keys %Devel::Leak::Object::tracked), 0, 'Nothing still tracked');
+is (scalar(keys %Devel::Leak::Object::TRACKED), 0, 'Nothing still tracked');
