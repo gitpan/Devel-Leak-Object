@@ -17,4 +17,4 @@ no_index:
 requires: 
   Scalar::Util: 1.19
   perl: 5.005
-version: 0.90
+version: 0.91
