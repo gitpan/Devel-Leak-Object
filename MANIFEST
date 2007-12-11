@@ -17,4 +17,5 @@ t/001_basic.t
 t/002_inherit.t
 t/003_rebless.t
 t/004_auto.t
-t/99_author.t
+t/98_pod.t
+t/99_pmv.t
