@@ -9,7 +9,7 @@ use Scalar::Util ();
 use vars qw{ $VERSION @ISA @EXPORT_OK };
 use vars qw{ %OBJECT_COUNT %TRACKED %DESTROY_ORIGINAL %DESTROY_STUBBED %DESTROY_NEXT };
 BEGIN {
-	$VERSION     = '0.92';
+	$VERSION     = '1.00';
 
     # Set up exports
 	require Exporter;
@@ -54,17 +54,19 @@ sub track {
     }
     my $address = Scalar::Util::refaddr($object);
     if ( $TRACKED{$address} ) {
-        if ( $class eq $TRACKED{$address} ) {
+	$TRACKED{$address}->{class} ||= ''; # avoid warnings about uninitialised strings
+        if ( $class eq $TRACKED{$address}->{class} ) {
             # Reblessing into the same class, ignore
             return $OBJECT_COUNT{$class};
         } else {
             # Reblessing into a different class
-            $OBJECT_COUNT{$TRACKED{$address}}--;
+            $OBJECT_COUNT{$TRACKED{$address}->{class}}--;
         }
     }
 
     # Set or over-write the class name for the tracked object
-    $TRACKED{$address} = $class;
+    (undef, my $srcfile, my $srcline) = caller(1);
+    $TRACKED{$address} = { class => $class, file => $srcfile, line => $srcline };
 
     # If needed, initialise the new class
     unless ( $DESTROY_STUBBED{$class} ) {
@@ -84,10 +86,10 @@ sub DESTROY {
     }
 
     # Don't do anything unless tracking for the specific object is set
-    my \$original = \$Devel::Leak::Object::TRACKED{\$address};
+    my \$original = \$Devel::Leak::Object::TRACKED{\$address}->{class};
     if ( \$original ) {
         ### TODO - We COULD add a check that $class eq
-        #          \$Devel::Leak::Object::TRACKED{\$address}
+        #          \$Devel::Leak::Object::TRACKED{\$address}->{class}
         #          and then not decrement unless it is the same.
         #          However, in practice it should ALWAYS be the same if
         #          we already have \$Devel::Leak::Object::TRACKED{\$address}
@@ -97,11 +99,11 @@ sub DESTROY {
         #          date if it turns out to be needed.
         #          if ( \$class eq \$Devel::Leak::Object::TRACKED{\$address} ) { ... }
         if ( \$class ne \$original ) {
-            warn "Object class '\$class' does not match original \$Devel::Leak::Object::TRACKED{\$address}";
+            warn "Object class '\$class' does not match original ".\$Devel::Leak::Object::TRACKED{\$address}->{class};
         }
         \$Devel::Leak::Object::OBJECT_COUNT{\$original}--;
         if ( \$Devel::Leak::Object::OBJECT_COUNT{\$original} < 0 ) {
-            warn "Object count for \$Devel::Leak::Object::TRACKED{\$address} negative (\$Devel::Leak::Object::OBJECT_COUNT{\$original})";
+            warn "Object count for ".\$Devel::Leak::Object::TRACKED{\$address}->{class}." negative (\$Devel::Leak::Object::OBJECT_COUNT{\$original})";
         }
         delete \$Devel::Leak::Object::TRACKED{\$address};
 
@@ -137,7 +139,7 @@ END_DESTROY
         }
     }
 
-    $OBJECT_COUNT{$TRACKED{$address}}++;
+    $OBJECT_COUNT{$TRACKED{$address}->{class}}++;
 }
 
 sub make_next {
@@ -178,10 +180,23 @@ sub make_next {
 }
 
 sub status {
-	print "Tracked objects by class:\n";
+	print STDERR "Tracked objects by class:\n";
 	for (sort keys %OBJECT_COUNT) {
         next unless $OBJECT_COUNT{$_}; # Don't list class with count zero
-		printf "%-40s %d\n", $_, $OBJECT_COUNT{$_};
+		printf STDERR "%-40s %d\n", $_, $OBJECT_COUNT{$_};
+	}
+	if($Devel::Leak::Object::TRACKSOURCELINES) {
+	    print STDERR "\nSources of leaks:\n";
+	    my $prevclass = '';
+	    foreach my $obj (sort {
+	        $a->{class} cmp $b->{class} || # sort by class ...
+	        $a->{file}  cmp $b->{file}  || # ... then by file ...
+	        $a->{line}  cmp $b->{line}     # ... then by line number
+            } values(%TRACKED)) {
+	        printf STDERR "%s\n", $obj->{class} if($prevclass ne $obj->{class});
+	        printf STDERR "  line: %05d   %s\n", map { $obj->{$_} } qw(line file);
+		$prevclass = $obj->{class}
+	    }
 	}
 }
 
@@ -208,6 +223,10 @@ Devel::Leak::Object - Detect leaks of objects
   # Track every object
   use Devel::Leak::Object qw{ GLOBAL_bless };
 
+  # Track every object including where they're created
+  use Devel::Leak::Object qw{ GLOBAL_bless };
+  $Devel::Leak::Object::TRACKSOURCELINES = 1;
+
 =head1 DESCRIPTION
 
 This module provides tracking of objects, for the purpose of detecting memory
@@ -215,7 +234,7 @@ leaks due to circular references or innappropriate caching schemes.
 
 Object tracking can be enabled on a per object basis. Any objects
 thus tracked are remembered until DESTROYed; details of any objects
-left are printed out to stderr at END-time.
+left are printed out to STDERR at END-time.
 
   use Devel::Leak::Object qw(GLOBAL_bless);
 
@@ -230,6 +249,10 @@ has enabled the hook.
 Any modules already loaded will have already bound to CORE::bless and will
 not be impacted.
 
+Setting the global variable $Devel::Leak::Object::TRACKSOURCELINES makes the
+report at the end include where (filename and line number) each leaked object
+originates.
+
 =head1 BUGS
 
 Please report bugs to http://rt.cpan.org
@@ -238,13 +261,15 @@ Please report bugs to http://rt.cpan.org
 
 Adam Kennedy <adamk@cpan.org>
 
+With some additional contributions from David Cantrell E<lt>david@cantrell.org.ukE<gt>
+
 =head1 SEE ALSO
 
 L<Devel::Leak>
 
 =head1 COPYRIGHT
 
-Copyright 2007 Adam Kennedy.
+Copyright 2007 - 2009 Adam Kennedy.
 
 Rewritten from original copyright 2004 Ivor Williams.
 

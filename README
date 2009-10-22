@@ -6,9 +6,13 @@ SYNOPSIS
       use Devel::Leak::Object;
       my $obj = Foo::Bar->new;
       Devel::Leak::Object::track($obj);
-  
-      # Track every object
+      
+  # Track every object
       use Devel::Leak::Object qw{ GLOBAL_bless };
+
+      # Track every object including where they're created
+      use Devel::Leak::Object qw{ GLOBAL_bless };
+      $Devel::Leak::Object::TRACKSOURCELINES = 1;
 
 DESCRIPTION
     This module provides tracking of objects, for the purpose of detecting
@@ -17,7 +21,7 @@ DESCRIPTION
 
     Object tracking can be enabled on a per object basis. Any objects thus
     tracked are remembered until DESTROYed; details of any objects left are
-    printed out to stderr at END-time.
+    printed out to STDERR at END-time.
 
       use Devel::Leak::Object qw(GLOBAL_bless);
 
@@ -32,17 +36,24 @@ DESCRIPTION
     Any modules already loaded will have already bound to CORE::bless and
     will not be impacted.
 
+    Setting the global variable $Devel::Leak::Object::TRACKSOURCELINES makes
+    the report at the end include where (filename and line number) each
+    leaked object originates.
+
 BUGS
     Please report bugs to http://rt.cpan.org
 
 AUTHOR
     Adam Kennedy <adamk@cpan.org>
 
+    With some additional contributions from David Cantrell
+    <david@cantrell.org.uk>
+
 SEE ALSO
     Devel::Leak
 
 COPYRIGHT
-    Copyright 2007 Adam Kennedy.
+    Copyright 2007 - 2009 Adam Kennedy.
 
     Rewritten from original copyright 2004 Ivor Williams.
 

@@ -2,6 +2,7 @@ Changes
 inc/Module/Install.pm
 inc/Module/Install/Base.pm
 inc/Module/Install/Can.pm
+inc/Module/Install/DSL.pm
 inc/Module/Install/Fetch.pm
 inc/Module/Install/Makefile.pm
 inc/Module/Install/Metadata.pm
@@ -17,5 +18,11 @@ t/001_basic.t
 t/002_inherit.t
 t/003_rebless.t
 t/004_auto.t
+t/005_STDERR_at_end.t
+t/006_track_source_of_leaks.t
+t/97_meta.t
 t/98_pod.t
 t/99_pmv.t
+t/tracksource.pl
+t/tracksource.pm
+t/tracksource2.pl
