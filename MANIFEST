@@ -20,9 +20,9 @@ t/003_rebless.t
 t/004_auto.t
 t/005_STDERR_at_end.t
 t/006_track_source_of_leaks.t
-t/97_meta.t
-t/98_pod.t
-t/99_pmv.t
 t/tracksource.pl
 t/tracksource.pm
 t/tracksource2.pl
+xt/meta.t
+xt/pmv.t
+xt/pod.t
